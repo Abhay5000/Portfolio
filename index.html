@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Abhay Swami | Video Editor</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Inter', sans-serif;
+    }
+
+    :root {
+      --bg: #050505;
+      --card: rgba(255,255,255,0.05);
+      --border: rgba(255,255,255,0.08);
+      --text: #f5f5f5;
+      --muted: #8d8d8d;
+      --blue: #4F7CFF;
+      --purple: #8B5CFF;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+      cursor: none;
+    }
+
+    .cursor {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 2000;
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      mix-blend-mode: screen;
+      box-shadow: 0 0 25px rgba(79,124,255,0.7);
+      transform: translate(-50%, -50%);
+    }
+
+    .cursor-follower {
+      width: 60px;
+      height: 60px;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 50%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 1999;
+      backdrop-filter: blur(4px);
+      transform: translate(-50%, -50%);
+    }
+
+    body::-webkit-scrollbar { width: 8px; }
+    body::-webkit-scrollbar-thumb {
+      background: linear-gradient(var(--blue), var(--purple));
+      border-radius: 20px;
+    }
+
+    .noise {
+      position: fixed;
+      inset: 0;
+      opacity: 0.03;
+      pointer-events: none;
+      background-image: url('https://grainy-gradients.vercel.app/noise.svg');
+      z-index: 999;
+    }
+
+    .animated-bg {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      z-index: -2;
+    }
+
+    .gradient-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.22;
+      mix-blend-mode: screen;
+      animation: float 16s ease-in-out infinite alternate;
+    }
+
+    .orb1 { width: 500px; height: 500px; background: #4F7CFF; top: -120px; left: -120px; }
+    .orb2 { width: 450px; height: 450px; background: #8B5CFF; bottom: -150px; right: -120px; animation-delay: 2s; }
+    .orb3 { width: 350px; height: 350px; background: #5f8bff; top: 40%; left: 45%; animation-delay: 4s; }
+
+    @keyframes float {
+      0%   { transform: translate(0px, 0px) scale(1); }
+      50%  { transform: translate(40px, -60px) scale(1.1); }
+      100% { transform: translate(-30px, 40px) scale(0.95); }
+    }
+
+    /* LOADER */
+    .loader {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 1000;
+    }
+
+    .loader h1 {
+      font-size: 4vw;
+      letter-spacing: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .loader p {
+      color: var(--muted);
+      margin-top: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-size: 0.8rem;
+    }
+
+    .progress {
+      margin-top: 30px;
+      width: 220px;
+      height: 2px;
+      background: rgba(255,255,255,0.1);
+      overflow: hidden;
+      border-radius: 20px;
+    }
+
+    .progress span {
+      display: block;
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+    }
+
+    /* NAVBAR */
+    nav {
+      width: 100%;
+      padding: 24px 7%;
+      position: fixed;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      backdrop-filter: blur(12px);
+      background: rgba(0,0,0,0.25);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .logo { font-size: 1.1rem; font-weight: 600; letter-spacing: 2px; }
+    .logo span { color: var(--purple); }
+
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      margin-left: 28px;
+      transition: 0.3s ease;
+      font-size: 0.95rem;
+    }
+    nav a:hover { color: white; }
+
+    /* HERO */
+    .hero {
+      min-height: 100vh;
+      padding: 0 7%;
+      display: flex;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .glow {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(79,124,255,0.28), transparent 70%);
+      top: -100px;
+      left: -100px;
+      filter: blur(50px);
+    }
+
+    .glow2 {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(139,92,255,0.22), transparent 70%);
+      bottom: -150px;
+      right: -150px;
+      filter: blur(70px);
+    }
+
+    .hero-content { max-width: 850px; z-index: 2; }
+
+    .hero-tag {
+      display: inline-block;
+      padding: 10px 18px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.03);
+      margin-bottom: 28px;
+      color: #bdbdbd;
+      font-size: 0.9rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .hero h1 {
+      font-size: 6vw;
+      line-height: 1;
+      margin-bottom: 20px;
+      letter-spacing: -4px;
+    }
+
+    .gradient {
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--muted);
+      line-height: 1.8;
+      max-width: 650px;
+      margin-bottom: 35px;
+    }
+
+    .hero-buttons { display: flex; gap: 18px; }
+
+    .btn {
+      padding: 15px 28px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: 0.3s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+      color: white;
+    }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.05);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .btn:hover { transform: translateY(-3px); }
+
+    /* SECTION */
+    section {
+      padding: 120px 7%;
+      position: relative;
+      z-index: 2;
+    }
+
+    .section-title {
+      font-size: 3rem;
+      margin-bottom: 20px;
+      letter-spacing: -2px;
+    }
+
+    .section-sub {
+      color: var(--muted);
+      max-width: 650px;
+      line-height: 1.7;
+      margin-bottom: 60px;
+    }
+
+    /* CARDS / VIDEO GRID */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 28px;
+    }
+
+    .card {
+      position: relative;
+      border-radius: 28px;
+      overflow: hidden;
+      background: var(--card);
+      border: 1px solid var(--border);
+      transition: 0.4s ease;
+      backdrop-filter: blur(14px);
+      cursor: pointer;
+    }
+
+    .card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 0 40px rgba(79,124,255,0.18);
+    }
+
+    /* ─── VIDEO THUMB ─── */
+    .video-thumb {
+      position: relative;
+      width: 100%;
+      height: 220px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0d1637 0%, #1a0d3e 100%);
+    }
+
+    .video-thumb.portrait {
+      height: 360px;
+    }
+
+    .video-thumb img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      display: block;
+      transition: transform 0.5s ease;
+      opacity: 0;
+      transition: opacity 0.4s ease, transform 0.5s ease;
+    }
+
+    .video-thumb img.loaded {
+      opacity: 1;
+    }
+
+    .card:hover .video-thumb img {
+      transform: scale(1.05);
+    }
+
+    /* shimmer effect while loading */
+    .video-thumb::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255,255,255,0.04) 50%,
+        transparent 100%
+      );
+      animation: shimmer 1.8s infinite;
+      z-index: 0;
+    }
+
+    @keyframes shimmer {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    /* gradient overlay */
+    .video-thumb::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .play-overlay { z-index: 2; }
+
+    /* play button overlay */
+    .play-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      transition: 0.3s;
+    }
+
+    .play-btn {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.12);
+      border: 1.5px solid rgba(255,255,255,0.3);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.3s;
+    }
+
+    .card:hover .play-btn {
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      border-color: transparent;
+      transform: scale(1.12);
+      box-shadow: 0 0 30px rgba(79,124,255,0.5);
+    }
+
+    .play-btn svg {
+      width: 22px;
+      height: 22px;
+      fill: white;
+      margin-left: 3px;
+    }
+
+    /* ─── MODAL ─── */
+    .video-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      backdrop-filter: blur(20px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3000;
+      opacity: 0;
+      pointer-events: none;
+      transition: 0.4s ease;
+      padding: 30px;
+    }
+
+    .video-modal.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-inner {
+      position: relative;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    .video-modal iframe {
+      width: 100%;
+      height: 70vh;
+      border-radius: 24px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 0 50px rgba(79,124,255,0.15);
+      background: #000;
+      display: block;
+    }
+
+    .close-modal {
+      position: absolute;
+      top: -48px;
+      right: 0;
+      font-size: 2rem;
+      color: white;
+      cursor: pointer;
+      line-height: 1;
+      opacity: 0.7;
+      transition: 0.2s;
+    }
+    .close-modal:hover { opacity: 1; }
+
+    .card-content { padding: 24px; }
+    .card h3 { font-size: 1.2rem; margin-bottom: 10px; }
+    .card p  { color: var(--muted); line-height: 1.7; font-size: 0.95rem; }
+
+    .tag {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 0.72rem;
+      letter-spacing: 1px;
+      z-index: 3;
+    }
+
+    /* SKILLS */
+    .skill-list { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
+    .skill-item { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 0.98rem; }
+    .skill-item i { width: 18px; height: 18px; color: #d8d8d8; }
+
+    /* ABOUT */
+    .about-box {
+      padding: 50px;
+      border-radius: 32px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px);
+    }
+    .about-box p { color: var(--muted); line-height: 2; font-size: 1rem; }
+
+    /* FOOTER */
+    footer {
+      padding: 60px 7%;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    footer p { color: var(--muted); }
+    footer a { color: white; text-decoration: none; }
+
+    @media(max-width: 768px) {
+      .hero h1 { font-size: 4rem; }
+      .section-title { font-size: 2.2rem; }
+      nav { padding: 20px 5%; }
+      section { padding: 100px 5%; }
+      .hero { padding: 0 5%; }
+      .hero-buttons { flex-direction: column; }
+      .about-box { padding: 30px; }
+      .loader h1 { font-size: 8vw; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="animated-bg">
+    <div class="gradient-orb orb1"></div>
+    <div class="gradient-orb orb2"></div>
+    <div class="gradient-orb orb3"></div>
+  </div>
+
+  <div class="cursor"></div>
+  <div class="cursor-follower"></div>
+  <div class="noise"></div>
+
+  <!-- VIDEO MODAL -->
+  <div class="video-modal" id="videoModal">
+    <div class="modal-inner">
+      <div class="close-modal" id="closeModal">×</div>
+      <iframe id="modalFrame" src="" frameborder="0" allowfullscreen allow="autoplay"></iframe>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div class="loader" id="loader">
+    <h1>ABHAY SWAMI</h1>
+    <p>Loading Visuals...</p>
+    <div class="progress"><span id="progressBar"></span></div>
+  </div>
+
+  <!-- NAV -->
+  <nav>
+    <div class="logo">ABHAY<span>.</span></div>
+    <div>
+      <a href="#work">Work</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="glow"></div>
+    <div class="glow2"></div>
+    <div class="hero-content">
+      <div class="hero-tag">Video Editor • Motion Designer • AI Creator</div>
+      <h1>Crafting <span class="gradient">visual stories</span> that keep people watching.</h1>
+      <p>I create cinematic edits, AI-powered content, high-retention reels, podcasts, and branded visuals designed to capture attention and elevate digital experiences.</p>
+      <div class="hero-buttons">
+        <a href="#work" class="btn btn-primary">View Work</a>
+        <a href="#contact" class="btn btn-secondary">Contact Me</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- WORK -->
+  <!--
+    ════════════════════════════════════════════════════════════
+    GOOGLE DRIVE VIDEO KAISE DAALEIN — STEP BY STEP:
+
+    1. Drive mein video upload karo
+    2. Right-click → "Share" → "Anyone with the link" set karo
+    3. Share link copy karo. Example:
+         https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz/view?usp=sharing
+    4. Sirf FILE_ID copy karo (1AbCdEfGhIjKlMnOpQrStUvWxYz wala part)
+    5. Neeche data-video aur data-thumb mein paste karo jaise dikh raha hai
+    ════════════════════════════════════════════════════════════
+  -->
+
+  <section id="work">
+    <h2 class="section-title">Selected Work</h2>
+    <p class="section-sub">A curated collection of my best work across cinematic edits, AI-generated content, podcasts, reels, and commercial-style visuals.</p>
+
+    <div class="grid">
+
+      <!-- CARD 1 — PODCAST (landscape) -->
+      <div class="card reveal"
+           data-video="1OAUQHmtr1_NeiV-bw7fPKoPiCiJvUtQE"
+           data-thumb="1OAUQHmtr1_NeiV-bw7fPKoPiCiJvUtQE">
+        <div class="tag">PODCAST</div>
+        <div class="video-thumb">
+          <img loading="lazy" src="" alt="video thumbnail">
+          <div class="play-overlay">
+            <div class="play-btn">
+              <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3>Podcast Editing</h3>
+          <p>Clean cuts, dynamic captions, engaging pacing, and cinematic color grading designed for retention.</p>
+        </div>
+      </div>
+
+      <!-- CARD 2 — AI SAAS DEMO (landscape) -->
+      <div class="card reveal"
+           data-video="1fMcHlZp3GpD7t30Q53BVPc9Izl8z6oio"
+           data-thumb="1fMcHlZp3GpD7t30Q53BVPc9Izl8z6oio">
+        <div class="tag">AI SAAS</div>
+        <div class="video-thumb">
+          <img loading="lazy" src="" alt="video thumbnail">
+          <div class="play-overlay">
+            <div class="play-btn">
+              <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3>AI SaaS Demo</h3>
+          <p>AI-powered product demo with smooth motion graphics, branded visuals, and premium sound design.</p>
+        </div>
+      </div>
+
+      <!-- CARD 3 — AI UGC AD (landscape) -->
+      <div class="card reveal"
+           data-video="1MMMwaNGId8L605uvg21bzzKfIxbxVYyx"
+           data-thumb="1MMMwaNGId8L605uvg21bzzKfIxbxVYyx">
+        <div class="tag">AI UGC</div>
+        <div class="video-thumb">
+          <img loading="lazy" src="" alt="video thumbnail">
+          <div class="play-overlay">
+            <div class="play-btn">
+              <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3>AI UGC Advertisement</h3>
+          <p>Short-form AI ad creatives optimized for scroll-stopping engagement and conversions.</p>
+        </div>
+      </div>
+
+      <!-- CARD 4 — REAL ESTATE REEL (portrait/vertical) -->
+      <div class="card reveal"
+           data-video="1XIN3_cWuLF69QYa71M93iuVCa2rcmx5z"
+           data-thumb="1XIN3_cWuLF69QYa71M93iuVCa2rcmx5z">
+        <div class="tag">REAL ESTATE</div>
+        <div class="video-thumb portrait">
+          <img loading="lazy" src="" alt="video thumbnail">
+          <div class="play-overlay">
+            <div class="play-btn">
+              <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3>Real Estate Reel</h3>
+          <p>High-retention property reel with beat sync, motion typography, and cinematic transitions.</p>
+        </div>
+      </div>
+
+      <!-- CARD 5 — AI AVATAR REEL (portrait/vertical) -->
+      <div class="card reveal"
+           data-video="1E4qK-WjOHS9BLAuZ8rMfW1iU8lZbLyCK"
+           data-thumb="1E4qK-WjOHS9BLAuZ8rMfW1iU8lZbLyCK">
+        <div class="tag">AI AVATAR</div>
+        <div class="video-thumb portrait">
+          <img loading="lazy" src="" alt="video thumbnail">
+          <div class="play-overlay">
+            <div class="play-btn">
+              <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3>AI Avatar Reel</h3>
+          <p>AI avatar-driven short-form content with dynamic pacing and premium motion design.</p>
+        </div>
+      </div>
+
+      <!-- CARD 6 — AI AVATAR NON-EXISTENT (portrait/vertical) -->
+      <div class="card reveal"
+           data-video="1VugMzYI-BUSEKl7dqSF5wmEhuqhKIL0-"
+           data-thumb="1VugMzYI-BUSEKl7dqSF5wmEhuqhKIL0-">
+        <div class="tag">AI GENERATED</div>
+        <div class="video-thumb portrait">
+          <img loading="lazy" src="" alt="video thumbnail">
+          <div class="play-overlay">
+            <div class="play-btn">
+              <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
+            </div>
+          </div>
+        </div>
+        <div class="card-content">
+          <h3>AI Avatar — Non-Existent Human</h3>
+          <p>Fully AI-generated avatar reel featuring a hyper-realistic human that doesn't exist in reality.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- SKILLS -->
+  <section id="skills">
+    <h2 class="section-title">Tools & Skills</h2>
+    <p class="section-sub">A creative toolkit built around cinematic editing, AI-powered workflows, motion design, and content production.</p>
+
+    <div class="grid">
+      <div class="card reveal">
+        <div class="tag">SOFTWARE</div>
+        <div class="card-content">
+          <h3>Editing & Design</h3>
+          <div class="skill-list">
+            <div class="skill-item"><i data-lucide="clapperboard"></i> Adobe Premiere Pro</div>
+            <div class="skill-item"><i data-lucide="sparkles"></i> Adobe After Effects</div>
+            <div class="skill-item"><i data-lucide="image"></i> Adobe Photoshop</div>
+            <div class="skill-item"><i data-lucide="palette"></i> Canva</div>
+            <div class="skill-item"><i data-lucide="audio-waveform"></i> Audacity</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <div class="tag">AI TOOLS</div>
+        <div class="card-content">
+          <h3>AI Creative Workflow</h3>
+          <div class="skill-list">
+            <div class="skill-item"><i data-lucide="bot"></i> HeyGen AI Avatar</div>
+            <div class="skill-item"><i data-lucide="film"></i> Kling Video Generation</div>
+            <div class="skill-item"><i data-lucide="wand-sparkles"></i> Runway ML</div>
+            <div class="skill-item"><i data-lucide="mic-2"></i> ElevenLabs Audio Generation</div>
+            <div class="skill-item"><i data-lucide="orbit"></i> Seedance</div>
+            <div class="skill-item"><i data-lucide="music-4"></i> Suno AI</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="about">
+    <h2 class="section-title">About Me</h2>
+    <div class="about-box reveal">
+      <p>
+        I'm Abhay Swami, a video editor and motion designer focused on creating visually immersive content that blends cinematic storytelling with modern digital aesthetics. My work ranges from AI-generated content and podcast editing to short-form reels, VFX, and commercial-style visuals.
+        <br><br>
+        I focus heavily on pacing, sound design, transitions, and retention-based editing to make every frame feel intentional.
+      </p>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section id="contact">
+    <h2 class="section-title">Let's Create Something Amazing</h2>
+    <p class="section-sub">Available for freelance projects, brand collaborations, and creative editing work.</p>
+    <div class="hero-buttons">
+      <a href="mailto:abhayswami5000@gmail.com" class="btn btn-primary">Email Me</a>
+      <a href="https://www.linkedin.com/in/abhay-swami-8484971b7/" class="btn btn-secondary" target="_blank">LinkedIn</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2026 Abhay Swami. All Rights Reserved.</p>
+    <p>Designed with cinematic precision.</p>
+  </footer>
+
+  <script>
+    gsap.registerPlugin(ScrollTrigger)
+
+    // ── LOADER ──
+    gsap.timeline()
+      .to('#progressBar', { width: '100%', duration: 2, ease: 'power2.out' })
+      .to('#loader', { opacity: 0, duration: 0.8, delay: 0.2, pointerEvents: 'none' })
+
+    // ── HERO ANIMATIONS ──
+    gsap.from('.hero-tag',     { y: 30, opacity: 0, duration: 1,   delay: 2.4 })
+    gsap.from('.hero h1',      { y: 60, opacity: 0, duration: 1.2, delay: 2.6 })
+    gsap.from('.hero p',       { y: 30, opacity: 0, duration: 1,   delay: 2.8 })
+    gsap.from('.hero-buttons', { y: 20, opacity: 0, duration: 1,   delay: 3   })
+
+    // ── CUSTOM CURSOR ──
+    const cursor   = document.querySelector('.cursor')
+    const follower = document.querySelector('.cursor-follower')
+
+    window.addEventListener('mousemove', (e) => {
+      gsap.to(cursor,   { x: e.clientX, y: e.clientY, duration: 0.1 })
+      gsap.to(follower, { x: e.clientX, y: e.clientY, duration: 0.4 })
+    })
+
+    document.querySelectorAll('a, .card, .btn').forEach(el => {
+      el.addEventListener('mouseenter', () => gsap.to(follower, { scale: 1.8, borderColor: 'rgba(79,124,255,0.5)', duration: 0.3 }))
+      el.addEventListener('mouseleave', () => gsap.to(follower, { scale: 1,   borderColor: 'rgba(255,255,255,0.15)', duration: 0.3 }))
+    })
+
+    lucide.createIcons()
+
+    // ════════════════════════════════════════════════════
+    //  GOOGLE DRIVE HELPER
+    //  Drive File ID → preview / embed URL banana
+    // ════════════════════════════════════════════════════
+
+    function driveEmbed(id) {
+      return `https://drive.google.com/file/d/${id}/preview`
+    }
+
+    function getFileId(input) {
+      if (!input) return null
+
+      // Agar pura URL diya hai toh ID nikaalo
+      const patterns = [
+        /\/file\/d\/([a-zA-Z0-9_-]+)/,
+        /id=([a-zA-Z0-9_-]+)/,
+        /open\?id=([a-zA-Z0-9_-]+)/
+      ]
+
+      for (const p of patterns) {
+        const m = input.match(p)
+        if (m) return m[1]
+      }
+
+      // Agar sirf ID diya hai (no slashes)
+      if (/^[a-zA-Z0-9_-]{10,}$/.test(input.trim())) {
+        return input.trim()
+      }
+
+      return null
+    }
+
+    // ── CARD THUMBNAILS ──
+    document.querySelectorAll('.card[data-thumb]').forEach(card => {
+      const rawThumb = card.getAttribute('data-thumb')
+      const id = getFileId(rawThumb) || rawThumb.trim()
+      const img = card.querySelector('.video-thumb img')
+      if (!img || !id) return
+
+      // Try Drive thumbnail — multiple URL formats as fallback
+      const urls = [
+        `https://drive.google.com/thumbnail?id=${id}&sz=w800`,
+        `https://lh3.googleusercontent.com/d/${id}=w800`,
+      ]
+
+      let tried = 0
+      function tryNext() {
+        if (tried >= urls.length) return // all failed — gradient shows fine
+        img.src = urls[tried++]
+      }
+
+      img.onload  = () => img.classList.add('loaded')
+      img.onerror = () => tryNext()
+      tryNext()
+    })
+
+    // ── VIDEO MODAL ──
+    const modal      = document.getElementById('videoModal')
+    const modalFrame = document.getElementById('modalFrame')
+    const closeBtn   = document.getElementById('closeModal')
+
+    function openModal(src) {
+      modalFrame.src = src
+      modal.classList.add('active')
+      document.body.style.overflow = 'hidden'
+    }
+
+    function closeModal() {
+      modal.classList.remove('active')
+      modalFrame.src = ''
+      document.body.style.overflow = ''
+    }
+
+    document.querySelectorAll('.card[data-video]').forEach(card => {
+      card.addEventListener('click', () => {
+        const raw = card.getAttribute('data-video')
+
+        // YouTube support (agar kabhi YouTube link daalna ho)
+        if (raw.includes('youtu')) {
+          let id = ''
+          if (raw.includes('youtu.be/')) id = raw.split('youtu.be/')[1].split('?')[0]
+          else if (raw.includes('watch?v=')) id = raw.split('watch?v=')[1].split('&')[0]
+          else if (raw.includes('/embed/')) id = raw.split('/embed/')[1].split('?')[0]
+          openModal(`https://www.youtube.com/embed/${id}?autoplay=1&rel=0`)
+          return
+        }
+
+        // Google Drive support
+        const fileId = getFileId(raw) || raw
+        if (fileId && fileId !== 'APNA_FILE_ID_YAHAN_DAALO') {
+          openModal(driveEmbed(fileId))
+        }
+      })
+    })
+
+    closeBtn.addEventListener('click', closeModal)
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal() })
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal() })
+
+    // ── SCROLL REVEAL ──
+    gsap.utils.toArray('.reveal').forEach(el => {
+      gsap.from(el, {
+        y: 80,
+        opacity: 0,
+        duration: 1.2,
+        ease: 'power3.out',
+        scrollTrigger: { trigger: el, start: 'top 85%' }
+      })
+    })
+  </script>
+</body>
+</html>
